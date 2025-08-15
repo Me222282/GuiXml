@@ -48,7 +48,7 @@ namespace GuiXml
 
         public static IEnumerable<TypeInfo> GetAllTypes(this Assembly root)
         {
-            IEnumerable<TypeInfo> types = Enumerable.Empty<TypeInfo>();
+            IEnumerable<TypeInfo> types = root.DefinedTypes;
             AssemblyName[] names = root.GetReferencedAssemblies();
             
             foreach (AssemblyName name in names)

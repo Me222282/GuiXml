@@ -170,7 +170,7 @@ namespace GuiXml
                         throw new Exception($"{node.Name} doesn't have a Text property");
                     }
                     
-                    output.WriteLine($"{vName}.Text = {child.Value.Trim()}");
+                    output.WriteLine($"{vName}.Text = @\"{child.Value.Trim()}\"");
                     // pi.SetValue(element, child.Value.Trim());
                     continue;
                 }
@@ -270,6 +270,10 @@ namespace GuiXml
                     if (returnType == typeof(float))
                     {
                         return value + "f";
+                    }
+                    if (returnType == typeof(string))
+                    {
+                        return $"@\"{value}\"";
                     }
                     
                     return value;

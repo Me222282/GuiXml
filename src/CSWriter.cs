@@ -1,39 +1,44 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GuiXml
 {
-    public class CSWriter : StreamWriter
+    public class CSWriter
     {
         public CSWriter(Stream stream)
-            : base(stream)
         {
-            
+            _sw = new StreamWriter(stream);
         }
         
+        private StreamWriter _sw;
         private int _indentation = 0;
         public int Spaces { get; set; } = 4;
+
         private bool _nl = false;
         private bool _sc = false;
         
         private void AddIndentationNL()
         {
             // new line
-            base.Write(CoreNewLine, 0, CoreNewLine.Length);
+            _sw.Write(_sw.NewLine, 0, _sw.NewLine.Length);
             
             int size = Spaces * _indentation;
             char[] buffer = Enumerable.Repeat(' ', size).ToArray();
-            base.Write(buffer, 0, size);
+            _sw.Write(buffer, 0, size);
         }
         // ending semicolon
-        private void AddSC() => base.Write([';'], 0, 1);
+        private void AddSC() => _sw.Write([';'], 0, 1);
         
         public void OpenContext()
         {
             if (_nl) { AddIndentationNL(); }
             _sc = false;
-            base.Write(['{'], 0, 1);
+            _sw.Write(['{'], 0, 1);
             _indentation++;
             AddIndentationNL();
             _nl = false;
@@ -47,7 +52,7 @@ namespace GuiXml
                 AddIndentationNL();
             }
             _sc = false;
-            base.Write(['}'], 0, 1);
+            _sw.Write(['}'], 0, 1);
             _nl = true;
         }
         
@@ -59,27 +64,6 @@ namespace GuiXml
                 throw new Exception("Comment cannot contain new line");
             }
             
-            // comment prefix
-            base.Write(['/', '/', ' '], 0, 3);
-            // comment is just a writeline
-            WriteLine(comment);
-            // no need for semicolons
-            _sc = false;
-        }
-        public void CommentLine()
-        {
-            // comment prefix
-            base.Write(['/', '/', ' '], 0, 3);
-            // comment is just a writeline
-            WriteLine();
-            // no need for semicolons
-            _sc = false;
-        }
-        
-        public override void Write(char[] buffer, int index, int count)
-        {
-            ReadOnlySpan<char> span = buffer.AsSpan(index, count);
-            
             // add new line from previous
             if (_nl)
             {
@@ -87,10 +71,49 @@ namespace GuiXml
                 AddIndentationNL();
             }
             
-            int nls = CoreNewLine.Length;
-            int nl = span.IndexOf(CoreNewLine);
+            _nl = false;
+            _sc = false;
+            
+            // comment prefix
+            _sw.Write(['/', '/', ' '], 0, 3);
+            // comment is just a writeline
+            WriteLine(comment);
+            // no need for semicolons
+            _sc = false;
+        }
+        public void CommentLine()
+        {
+            // add new line from previous
+            if (_nl)
+            {
+                if (_sc) { AddSC(); }
+                AddIndentationNL();
+            }
+            
+            _nl = false;
+            _sc = false;
+            
+            // comment prefix
+            _sw.Write(['/', '/', ' '], 0, 3);
+            // comment is just a writeline
+            WriteLine();
+            // no need for semicolons
+            _sc = false;
+        }
+        
+        public void Write(ReadOnlySpan<char> span)
+        {   
+            // add new line from previous
+            if (_nl)
+            {
+                if (_sc) { AddSC(); }
+                AddIndentationNL();
+            }
+            
+            int nls = _sw.NewLine.Length;
+            int nl = span.IndexOf(_sw.NewLine);
             int last = 0;
-            if (nl < 0 || buffer.Length == last + nl + nls)
+            if (nl < 0 || span.Length == last + nl + nls)
             {
                 goto SkipLoop;
             }
@@ -99,15 +122,15 @@ namespace GuiXml
             {
                 if (nl != 0)
                 {
-                    base.Write(buffer, last, nl);
+                    _sw.Write(span.Slice(last, nl));
                     AddSC();
                 }
                 
                 last += nl + nls;
-                nl = span.Slice(nl + nls).IndexOf(CoreNewLine);
+                nl = span.Slice(nl + nls).IndexOf(_sw.NewLine);
                 
                 // continue whilst there are still new lines with content after
-                if (nl >= 0 && buffer.Length != last + nl + nls)
+                if (nl >= 0 && span.Length != last + nl + nls)
                 {
                     AddIndentationNL();
                     continue;
@@ -127,15 +150,36 @@ namespace GuiXml
             
             _nl = false;
             
-            int left = buffer.Length - last;
+            int left = span.Length - last;
             if (left != 0)
             {
-                base.Write(buffer, last, left);
+                _sw.Write(span.Slice(last, left));
                 _sc = true;
                 return;
             }
             
             _sc = false;
+        }
+        public void WriteLine(ReadOnlySpan<char> span)
+        {
+            Write(span);
+            WriteLine();
+        }
+        public void WriteLine()
+        {
+            if (_nl)
+            {
+                if (_sc) { AddSC(); }
+                AddIndentationNL();
+                _sc = false;
+            }
+            _nl = true;
+        }
+        
+        public void Close()
+        {
+            _sw.Flush();
+            _sw.Close();
         }
     }
 }

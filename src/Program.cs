@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -110,11 +110,11 @@ namespace GuiXml
                 // TODO: use folders for subspaces
                 csw.WriteLine($"namespace {rootspace}");
                 csw.OpenContext();
-                csw.WriteLine($"public static class {name}");
+                csw.WriteLine($"internal static class {name}");
                 csw.OpenContext();
-                csw.WriteLine($"public static void LoadGUI(ElementList el{args})");
+                csw.WriteLine($"internal static void LoadGUI(ElementList el{args})");
                 csw.OpenContext();
-                csw.WriteLine("RootElement root = el.Source");
+                csw.WriteLine("IElement root = el.Source");
                 csw.WriteLine();
                 
                 _xml.TranscribeXml(stream, csw);
@@ -122,6 +122,8 @@ namespace GuiXml
                 csw.CloseContext();
                 csw.CloseContext();
                 csw.CloseContext();
+                
+                csw.Close();
             }
             catch (Exception e)
             {
