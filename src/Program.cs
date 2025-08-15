@@ -39,6 +39,26 @@ namespace GuiXml
                 return;
             }
             
+            // args[0] will exist here
+            _asm = FindAsm(args[0]);
+            // error
+            if (_asm == null) { return; }
+            
+            string rootspace = _asm.DefinedTypes.FindType("Program").Namespace;
+            
+            string funcArgs;
+            try
+            {
+                _xml = new Xml(_asm, typeNames);
+                Type[] insts = _xml.EventTypes.Where(t => !t.IsAbstract || !t.IsSealed).ToArray();
+                funcArgs = GenArgs(insts);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e.Message);
+                return;
+            }
+            
             foreach (string path in args.AsSpan(0, pathEnd))
             {
                 if (!File.Exists(path))
@@ -50,31 +70,30 @@ namespace GuiXml
                 Console.WriteLine($"Starting {path}");
                 FileStream input = new FileStream(path, FileMode.Open);
                 FileStream output = new FileStream(path + ".cs", FileMode.Create);
-                RunFile(input, output, Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path), typeNames);
+                RunFile(input, output, Path.GetFileNameWithoutExtension(path), rootspace, funcArgs);
                 Console.WriteLine($"Finished");
             }
         }
         
-        static void RunFile(Stream stream, Stream output, string dir, string name, List<string> typeNames)
+        static Xml _xml;
+        static Assembly _asm;
+        
+        static Assembly FindAsm(string path)
         {
-            string csproj = FindCSPROJ(dir);
+            string csproj = FindCSPROJ(Path.GetDirectoryName(path));
             if (csproj == null)
             {
                 Console.Error.WriteLine("Could not find parent csproj");
-                return;
+                return null;
             }
             
-            Assembly a = LoadAssembly(csproj);
-            if (a == null) { return; }
-            
-            string rootspace = a.DefinedTypes.FindType("Program").Namespace;
-            
+            return LoadAssembly(csproj);
+        }
+        
+        static void RunFile(Stream stream, Stream output, string name, string rootspace, string args)
+        {
             try
             {
-                Xml xml = new Xml(a, typeNames);
-                Type[] insts = xml.EventTypes.Where(t => !t.IsAbstract || !t.IsSealed).ToArray();
-                string args = GenArgs(insts);
-                
                 CSWriter csw = new CSWriter(output);
                 csw.WriteLine("using System");
                 csw.WriteLine("using Zene.Structs");
@@ -92,7 +111,7 @@ namespace GuiXml
                 csw.WriteLine("RootElement root = el.Source");
                 csw.WriteLine();
                 
-                xml.TranscribeXml(stream, csw);
+                _xml.TranscribeXml(stream, csw);
                 
                 csw.CloseContext();
                 csw.CloseContext();
