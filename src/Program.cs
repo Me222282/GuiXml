@@ -35,6 +35,7 @@ namespace GuiXml
             
             try
             {
+                Xml xml = new Xml(a);
                 
             }
             catch (Exception e)

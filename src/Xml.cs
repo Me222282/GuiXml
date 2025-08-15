@@ -4,6 +4,7 @@ using System.Xml;
 using System.Reflection;
 using System.Linq;
 using System.ComponentModel;
+using System.IO;
 
 namespace GuiXml
 {
@@ -13,25 +14,26 @@ namespace GuiXml
     {
         public Xml(Assembly a)
         {
-            _types = a.GetExportedTypes();
-            Type iElement = _types.FirstOrDefault(ti => ti.FullName == "Zene.GUI.IElement");
+            _types = a.DefinedTypes;
+            Type iElement = _types.FirstOrDefault(ti => ti.FullName == "Zene.GUI.IElement").AsType();
             _elementTypes = _types.Where(ti =>
             {
-                return ti.IsAssignableTo(iElement);
+                Type type = ti.AsType();
+                return type.IsAssignableTo(iElement);
             });
             
-            Type cursor = _types.FirstOrDefault(ti => ti.FullName == "Zene.Windowing.Cursor");
-            Type colour = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Colour");
-            Type colour3 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Colour3");
-            Type colourF = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.ColourF");
-            Type colourF3 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.ColourF3");
+            Type cursor = _types.FirstOrDefault(ti => ti.FullName == "Zene.Windowing.Cursor").AsType();
+            Type colour = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Colour").AsType();
+            Type colour3 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Colour3").AsType();
+            Type colourF = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.ColourF").AsType();
+            Type colourF3 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.ColourF3").AsType();
             
-            Type vector2 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector2");
-            Type vector2I = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector2I");
-            Type vector3 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector3");
-            Type vector3I = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector3I");
-            Type vector4 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector4");
-            Type vector4I = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector4I");
+            Type vector2 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector2").AsType();
+            Type vector2I = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector2I").AsType();
+            Type vector3 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector3").AsType();
+            Type vector3I = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector3I").AsType();
+            Type vector4 = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector4").AsType();
+            Type vector4I = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Vector4I").AsType();
             
             // all properties of vector2 are floatv - tells us if using float or double
             bool useFloat = vector2.GetProperties()[0].PropertyType == typeof(float);
@@ -51,8 +53,8 @@ namespace GuiXml
             AddParser(XmlTypeParser.Vector4IParser, vector4I);
         }
 
-        private readonly Type[] _types;
-        private readonly IEnumerable<Type> _elementTypes;
+        private readonly IEnumerable<TypeInfo> _types;
+        private readonly IEnumerable<TypeInfo> _elementTypes;
         private readonly Dictionary<Type, StringParser> _stringParses = new Dictionary<Type, StringParser>();
 
         public void AddParser(StringParser func, Type returnType) => _stringParses.Add(returnType, func);
@@ -60,39 +62,22 @@ namespace GuiXml
         private Window _window;
         private object _events;
         private Type _eventType;
-
-        public RootElement LoadGUI(Window window, string src, object events = null)
-        {
-            RootElement root = new RootElement(window);
-            root.Window.GraphicsContext.Actions.Push(() => LoadGUI(root.Elements, src, events, events?.GetType()));
-            return root;
-        }
-        public void LoadGUI(ElementList root, string src, object events = null)
-        {
-            root.Source.Properties.handle.Window.GraphicsContext.Actions.Push(() => LoadGUI(root, src, events, events?.GetType()));
-        }
-        public RootElement LoadGUI(Window window, string src, Type events)
-        {
-            RootElement root = new RootElement(window);
-            root.Window.GraphicsContext.Actions.Push(() => LoadGUI(root.Elements, src, null, events));
-            return root;
-        }
-        public void LoadGUI(ElementList root, string src, Type events)
-        {
-            root.Source.Properties.handle.Window.GraphicsContext.Actions.Push(() => LoadGUI(root, src, null, events));
-        }
-        private void LoadGUI(ElementList re, string src, object events, Type et)
+        
+        public void TranscribeXml(Stream xml, Stream output)
         {
             XmlDocument root = new XmlDocument();
-            root.LoadXml(src);
-
-            _events = events;
-            _eventType = et;
-            _window = re.Source.Properties.handle.Window;
-
+            try
+            {
+                root.Load(xml);
+            }
+            catch (Exception)
+            {
+                throw new Exception("Invalid XML syntax");
+            }
+            
             if (root.ChildNodes.Count == 0)
             {
-                throw new Exception($"No elements in {nameof(src)}");
+                throw new Exception($"No elements in xml");
             }
 
             XmlNodeList xnl = root.ChildNodes[0].ChildNodes;
@@ -101,7 +86,7 @@ namespace GuiXml
             {
                 if (root.ChildNodes.Count == 1)
                 {
-                    throw new Exception($"No elements in {nameof(src)}");
+                    throw new Exception($"No elements in xml");
                 }
 
                 xnl = root.ChildNodes[1].ChildNodes;
@@ -115,15 +100,9 @@ namespace GuiXml
 
                 re.Add(e);
             }
-
-            _window = null;
-            _events = null;
-            _eventType = null;
-
-            re.Source.Properties.handle.LayoutElement(re.Source);
         }
 
-        private IElement ParseNode(XmlNode node, object parent)
+        private IElement ParseNode(XmlNode node, object parent, Stream output)
         {
             if (node.Name == "Property")
             {
@@ -131,9 +110,9 @@ namespace GuiXml
                 return null;
             }
 
-            return ParseElement(node);
+            return ParseElement(node, output);
         }
-        private IElement ParseElement(XmlNode node)
+        private IElement ParseElement(XmlNode node, Stream output)
         {
             Type t = _elementTypes.FindType(node.Name);
             if (t == null)
@@ -146,7 +125,9 @@ namespace GuiXml
             {
                 throw new Exception($"Type {node.Name} does not have a parameterless constructor");
             }
-
+            
+            
+            
             IElement element = constructor.Invoke(null) as IElement;
 
             foreach (XmlAttribute a in node.Attributes)
