@@ -115,7 +115,7 @@ namespace GuiXml
                 if (name == null) { continue; }
 
                 // re.Add(e);
-                output.WriteLine($"root.AddChild({name})");
+                output.WriteLine($"el.Add({name})");
                 output.WriteLine();
             }
         }
@@ -214,28 +214,24 @@ namespace GuiXml
 
             int delegateParamterCount = ei.EventHandlerType.GetMethod("Invoke").GetParameters().Length;
 
-            Delegate d;
+            string dName;
             try
             {
-                d = ParseEventString(value, ei.EventHandlerType, delegateParamterCount, _window, _window.GetType()); ;
+                dName = ParseEventString(value, delegateParamterCount, _window, _window.GetType());
             }
             catch
             {
                 if (_eventType == null) { throw; }
 
-                d = ParseEventString(value, ei.EventHandlerType, delegateParamterCount, _events, _eventType);
+                dName = ParseEventString(value, delegateParamterCount, _events, _eventType);
             }
 
-            ei.AddEventHandler(e, d);
+            // ei.AddEventHandler(e, d);
+            output.WriteLine($"{vName}.{name} += {dName}");
         }
 
-        private static Delegate ParseEventString(string value, Type delegateType, int paramCount, object methodSource, Type sourceType)
+        private static string ParseEventString(string value, int paramCount, string sourceName, Type sourceType)
         {
-            if (sourceType == null)
-            {
-                throw new Exception("No method source");
-            }
-
             if (value[^1] == ')' && value[^2] == '(')
             {
                 value = value.Remove(value.Length - 2);
@@ -249,10 +245,10 @@ namespace GuiXml
 
             if (mi.IsStatic)
             {
-                return mi.CreateDelegate(delegateType);
+                return mi.Name;
             }
 
-            return mi.CreateDelegate(delegateType, methodSource);
+            return $"{sourceName}.{mi.Name}";
         }
 
         private string ParseString(string value, Type returnType)
