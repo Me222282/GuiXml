@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Text;
 
 namespace GuiXml
 {
@@ -8,7 +11,35 @@ namespace GuiXml
     {
         static void Main(string[] args)
         {
-            foreach (string path in args)
+            List<string> typeNames = new List<string>();
+            bool types = false;
+            int pathEnd = args.Length;
+            
+            for (int i = 0; i < args.Length; i++)
+            {
+                string arg = args[i];
+                
+                if (types)
+                {
+                    typeNames.Add(arg);
+                    continue;
+                }
+                
+                if (arg == "..")
+                {
+                    pathEnd = i;
+                    types = true;
+                    continue;
+                }
+            }
+            
+            if (pathEnd == 0)
+            {
+                Console.Error.WriteLine($"Missing path argument");
+                return;
+            }
+            
+            foreach (string path in args.AsSpan(0, pathEnd))
             {
                 if (!File.Exists(path))
                 {
@@ -19,12 +50,12 @@ namespace GuiXml
                 Console.WriteLine($"Starting {path}");
                 FileStream input = new FileStream(path, FileMode.Open);
                 FileStream output = new FileStream(path + ".cs", FileMode.Create);
-                RunFile(input, output, Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path));
+                RunFile(input, output, Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path), typeNames);
                 Console.WriteLine($"Finished");
             }
         }
         
-        static void RunFile(Stream stream, Stream output, string dir, string name)
+        static void RunFile(Stream stream, Stream output, string dir, string name, List<string> typeNames)
         {
             string csproj = FindCSPROJ(dir);
             if (csproj == null)
@@ -36,12 +67,14 @@ namespace GuiXml
             Assembly a = LoadAssembly(csproj);
             if (a == null) { return; }
             
-            
             string rootspace = a.DefinedTypes.FindType("Program").Namespace;
             
             try
             {
-                Xml xml = new Xml(a);
+                Xml xml = new Xml(a, typeNames);
+                Type[] insts = xml.EventTypes.Where(t => !t.IsAbstract || !t.IsSealed).ToArray();
+                string args = GenArgs(insts);
+                
                 CSWriter csw = new CSWriter(output);
                 csw.WriteLine("using System");
                 csw.WriteLine("using Zene.Structs");
@@ -52,9 +85,9 @@ namespace GuiXml
                 // TODO: use folders for subspaces
                 csw.WriteLine($"namespace {rootspace}");
                 csw.OpenContext();
-                csw.WriteLine($"public class {name}");
+                csw.WriteLine($"public static class {name}");
                 csw.OpenContext();
-                csw.WriteLine("public void LoadGUI(ElementList el)");
+                csw.WriteLine($"public static void LoadGUI(ElementList el{args})");
                 csw.OpenContext();
                 csw.WriteLine("RootElement root = el.Source");
                 csw.WriteLine();
@@ -70,6 +103,16 @@ namespace GuiXml
                 Console.Error.WriteLine(e.Message);
                 return;
             }
+        }
+        
+        static string GenArgs(Type[] types)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (Type t in types)
+            {
+                sb.Append($", {t.Name} {t.Name.ToLower()}");
+            }
+            return sb.ToString();
         }
         
         static string FindCSPROJ(string dir)

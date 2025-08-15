@@ -13,7 +13,7 @@ namespace GuiXml
 
     public class Xml
     {
-        public Xml(Assembly a)
+        public Xml(Assembly a, IReadOnlyList<string> typeNames)
         {
             _types = a.DefinedTypes;
             Type iElement = _types.FirstOrDefault(ti => ti.FullName == "Zene.GUI.IElement").AsType();
@@ -21,7 +21,7 @@ namespace GuiXml
             {
                 Type type = ti.AsType();
                 return type.IsAssignableTo(iElement);
-            });
+            }).ToArray();
             
             Type cursor = _types.FirstOrDefault(ti => ti.FullName == "Zene.Windowing.Cursor").AsType();
             Type colour = _types.FirstOrDefault(ti => ti.FullName == "Zene.Structs.Colour").AsType();
@@ -54,10 +54,12 @@ namespace GuiXml
             AddParser(XmlTypeParser.Vector4IParser, vector4I);
             
             _rootType = _types.FirstOrDefault(ti => ti.FullName == "Zene.GUI.RootElement").AsType();
+            
+            EventTypes = _types.Where(t => typeNames.Contains(t.Name)).ToArray();
         }
 
         private readonly IEnumerable<TypeInfo> _types;
-        private readonly IEnumerable<TypeInfo> _elementTypes;
+        private readonly TypeInfo[] _elementTypes;
         private readonly Dictionary<Type, StringParser> _stringParses = new Dictionary<Type, StringParser>();
         private readonly Dictionary<Type, int> _typeCounts = new Dictionary<Type, int>();
 
@@ -75,8 +77,7 @@ namespace GuiXml
             return v;
         }
         
-        private object _events;
-        private Type _eventType;
+        public Type[] EventTypes;
         private Type _rootType;
         
         public void TranscribeXml(Stream xml, CSWriter output)
@@ -214,23 +215,25 @@ namespace GuiXml
 
             int delegateParamterCount = ei.EventHandlerType.GetMethod("Invoke").GetParameters().Length;
 
-            string dName;
-            try
+            string dName = null;
+            foreach (Type eventSource in EventTypes)
             {
-                dName = ParseEventString(value, delegateParamterCount, _window, _window.GetType());
+                try
+                {
+                    dName = ParseEventString(value, delegateParamterCount, eventSource);
+                }
+                catch { }
             }
-            catch
+            if (dName == null)
             {
-                if (_eventType == null) { throw; }
-
-                dName = ParseEventString(value, delegateParamterCount, _events, _eventType);
+                throw new Exception($"A valid method {value} could not be found");
             }
 
             // ei.AddEventHandler(e, d);
             output.WriteLine($"{vName}.{name} += {dName}");
         }
 
-        private static string ParseEventString(string value, int paramCount, string sourceName, Type sourceType)
+        private static string ParseEventString(string value, int paramCount, Type sourceType)
         {
             if (value[^1] == ')' && value[^2] == '(')
             {
@@ -248,7 +251,7 @@ namespace GuiXml
                 return mi.Name;
             }
 
-            return $"{sourceName}.{mi.Name}";
+            return $"{sourceType.Name.ToLower()}.{mi.Name}";
         }
 
         private string ParseString(string value, Type returnType)
