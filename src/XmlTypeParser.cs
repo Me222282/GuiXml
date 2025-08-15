@@ -14,6 +14,10 @@ namespace GuiXml
                 _ => throw new Exception("Invalid Cursor syntax")
             };
             
+            if (Program.AbsRefs)
+            {
+                return $"Zene.Windowing.Cursor.{str}";
+            }
             return $"Cursor.{str}";
         }
         public static string ColourParser(string str)
@@ -80,6 +84,10 @@ namespace GuiXml
                 _ => throw new Exception("Invalid Colour syntax")
             };
             
+            if (Program.AbsRefs)
+            {
+                return $"Zene.Structs.Colour.{str}";
+            }
             return $"Colour.{str}";
         }
         public static string ColourFParser(string str)
@@ -146,6 +154,10 @@ namespace GuiXml
                 _ => throw new Exception("Invalid ColourF syntax")
             };
             
+            if (Program.AbsRefs)
+            {
+                return $"Zene.Structs.ColourF.{str}";
+            }
             return $"ColourF.{str}";
         }
         public static string Colour3Parser(string str)
@@ -212,6 +224,10 @@ namespace GuiXml
                 _ => throw new Exception("Invalid Colour3 syntax")
             };
             
+            if (Program.AbsRefs)
+            {
+                return $"Zene.Structs.Colour3.{str}";
+            }
             return $"Colour3.{str}";
         }
         public static string ColourF3Parser(string str)
@@ -278,6 +294,10 @@ namespace GuiXml
                 _ => throw new Exception("Invalid ColourF3 syntax")
             };
             
+            if (Program.AbsRefs)
+            {
+                return $"Zene.Structs.ColourF3.{str}";
+            }
             return $"ColourF3.{str}";
         }
 
@@ -298,7 +318,11 @@ namespace GuiXml
 
                     float x = float.Parse(str.Remove(str.IndexOf(',')));
                     float y = float.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+                    
+                    if (Program.AbsRefs)
+                    {
+                        return $"new Zene.Structs.Vector2({x}f, {y}f)";
+                    }
                     return $"new Vector2({x}f, {y}f)";
                 };
             }
@@ -316,7 +340,11 @@ namespace GuiXml
 
                 double x = double.Parse(str.Remove(str.IndexOf(',')));
                 double y = double.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+                
+                if (Program.AbsRefs)
+                {
+                    return $"new Zene.Structs.Vector2({x}d, {y}d)";
+                }
                 return $"new Vector2({x}d, {y}d)";
             };
         }
@@ -333,7 +361,11 @@ namespace GuiXml
 
             int x = int.Parse(str.Remove(str.IndexOf(',')));
             int y = int.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+            
+            if (Program.AbsRefs)
+            {
+                return $"new Zene.Structs.Vector2I({x}, {y})";
+            }
             return $"new Vector2I({x}, {y})";
         }
         public static StringParser Vector3Parser(bool useFloat)
@@ -355,7 +387,11 @@ namespace GuiXml
                     str = str.Remove(0, str.IndexOf(',') + 1);
                     float y = float.Parse(str.Remove(str.IndexOf(',')));
                     float z = float.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+                    
+                    if (Program.AbsRefs)
+                    {
+                        return $"new Zene.Structs.Vector3({x}f, {y}f, {z}f)";
+                    }
                     return $"new Vector3({x}f, {y}f, {z}f)";
                 };
             }
@@ -375,7 +411,11 @@ namespace GuiXml
                 str = str.Remove(0, str.IndexOf(',') + 1);
                 double y = double.Parse(str.Remove(str.IndexOf(',')));
                 double z = double.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+                
+                if (Program.AbsRefs)
+                {
+                    return $"new Zene.Structs.Vector3({x}d, {y}d, {z}d)";
+                }
                 return $"new Vector3({x}d, {y}d, {z}d)";
             };
         }
@@ -394,7 +434,11 @@ namespace GuiXml
             str = str.Remove(0, str.IndexOf(',') + 1);
             int y = int.Parse(str.Remove(str.IndexOf(',')));
             int z = int.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+            
+            if (Program.AbsRefs)
+            {
+                return $"new Zene.Structs.Vector3I({x}, {y}, {z})";
+            }
             return $"new Vector3I({x}, {y}, {z})";
         }
         public static StringParser Vector4Parser(bool useFloat)
@@ -418,7 +462,11 @@ namespace GuiXml
                     str = str.Remove(0, str.IndexOf(',') + 1);
                     float z = float.Parse(str.Remove(str.IndexOf(',')));
                     float w = float.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+                    
+                    if (Program.AbsRefs)
+                    {
+                        return $"new Zene.Structs.Vector4({x}f, {y}f, {z}f, {w}f)";
+                    }
                     return $"new Vector4({x}f, {y}f, {z}f, {w}f)";
                 };
             }
@@ -440,7 +488,11 @@ namespace GuiXml
                 str = str.Remove(0, str.IndexOf(',') + 1);
                 double z = double.Parse(str.Remove(str.IndexOf(',')));
                 double w = double.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+                
+                if (Program.AbsRefs)
+                {
+                    return $"new Zene.Structs.Vector4({x}d, {y}d, {z}d, {w}d)";
+                }
                 return $"new Vector4({x}d, {y}d, {z}d, {w}d)";
             };
         }
@@ -461,7 +513,11 @@ namespace GuiXml
             str = str.Remove(0, str.IndexOf(',') + 1);
             int z = int.Parse(str.Remove(str.IndexOf(',')));
             int w = int.Parse(str.Remove(0, str.IndexOf(',') + 1));
-
+            
+            if (Program.AbsRefs)
+            {
+                return $"new Zene.Structs.Vector4I({x}, {y}, {z}, {w})";
+            }
             return $"new Vector4I({x}, {y}, {z}, {w})";
         }
     }
