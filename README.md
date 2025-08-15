@@ -13,13 +13,15 @@ The arguments to the program are as follows:
 ```
 guixml <xml_files>.. [--abs] [--] [<event_types>..]
 ```
+
+**\<xml_files\>** specify all the xml files that are to be converted.
+It is presumed that they are all apart of the same assembly.
+If not, you can run GuiXml separately for each one.
+
 The \-\- must be included for **\<event_types\>** to be used
 
-All the xml files are presumed to be apart of the same assembly.
-If they are not, run GuiXml separately for each assembly.
-
 **\<event_types\>** specify all types where event methods are to be searched for.
-If a type is non-static, a reference will be required to an instance regardless of whether it is needed or not.  
+If a type is non-static, a reference to an instance will be required in the generated function regardless of whether it is needed or not.  
 *(This is just my lazyness. You can easily remove any unused arguments from the generated file.)*  
 *(Required using statements may also be missing from the file, and some may be unused.)*
 
