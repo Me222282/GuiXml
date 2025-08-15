@@ -51,6 +51,31 @@ namespace GuiXml
             _nl = true;
         }
         
+        public void CommentLine(string comment)
+        {
+            // no new lines
+            if (comment.Contains('\n'))
+            {
+                throw new Exception("Comment cannot contain new line");
+            }
+            
+            // comment prefix
+            base.Write(['/', '/', ' '], 0, 3);
+            // comment is just a writeline
+            WriteLine(comment);
+            // no need for semicolons
+            _sc = false;
+        }
+        public void CommentLine()
+        {
+            // comment prefix
+            base.Write(['/', '/', ' '], 0, 3);
+            // comment is just a writeline
+            WriteLine();
+            // no need for semicolons
+            _sc = false;
+        }
+        
         public override void Write(char[] buffer, int index, int count)
         {
             ReadOnlySpan<char> span = buffer.AsSpan(index, count);
@@ -65,6 +90,11 @@ namespace GuiXml
             int nls = CoreNewLine.Length;
             int nl = span.IndexOf(CoreNewLine);
             int last = 0;
+            if (nl < 0 || buffer.Length == last + nl + nls)
+            {
+                goto SkipLoop;
+            }
+            
             while (true)
             {
                 if (nl != 0)
@@ -85,7 +115,8 @@ namespace GuiXml
                 
                 break;
             }
-            
+        
+        SkipLoop:
             // last new line is end of buffer
             if (nl >= 0)
             {
