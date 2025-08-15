@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -151,7 +151,7 @@ namespace GuiXml
                     return path;
                 }
                 
-                dir = Directory.GetParent(dir).Parent.FullName;
+                dir = Directory.GetParent(dir)?.FullName;
             }
             
             return null;

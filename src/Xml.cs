@@ -17,7 +17,7 @@ namespace GuiXml
     {
         public Xml(Assembly a, IReadOnlyList<string> typeNames)
         {
-            _types = a.DefinedTypes;
+            _types = a.GetAllTypes();
             Type iElement = _types.FirstOrDefault(ti => ti.FullName == "Zene.GUI.IElement").AsType();
             _elementTypes = _types.Where(ti =>
             {

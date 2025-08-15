@@ -46,13 +46,14 @@ namespace GuiXml
             return null;
         }
 
-        public static IEnumerable<TypeInfo> GetAllTypes(this AppDomain domain)
+        public static IEnumerable<TypeInfo> GetAllTypes(this Assembly root)
         {
             IEnumerable<TypeInfo> types = Enumerable.Empty<TypeInfo>();
-            Assembly[] assemblies = domain.GetAssemblies();
-
-            foreach (Assembly asm in assemblies)
+            AssemblyName[] names = root.GetReferencedAssemblies();
+            
+            foreach (AssemblyName name in names)
             {
+                Assembly asm = Assembly.Load(name);
                 types = types.Concat(asm.DefinedTypes);
             }
 
