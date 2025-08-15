@@ -6,7 +6,7 @@ This is a simple program that converts xml files used for loading with the Zene 
 The project with the xml files must have been compiled before GuiXml is run.
 This is due to it relying on dotnet assemblies to do error checking.
 The Zene Structs, Graphics, Windowing and GUI libraries must also be referenced by the project assembly.
-GuiXml searches for the first csproj file along or above the folder with the first parsed xml file.
+GuiXml searches for the first csproj file along or above the folder with the first passed xml file.
 It then relies on the standard dotnet 8.0 folder structure and location for bin to find the assmeblies.
 
 The arguments to the program are as follows:
