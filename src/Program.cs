@@ -9,6 +9,8 @@ namespace GuiXml
 {
     class Program
     {
+        public static bool AbsRefs = false;
+        
         static void Main(string[] args)
         {
             List<string> typeNames = new List<string>();
@@ -18,6 +20,12 @@ namespace GuiXml
             for (int i = 0; i < args.Length; i++)
             {
                 string arg = args[i];
+                
+                if (arg == "--abs")
+                {
+                    AbsRefs = true;
+                    continue;
+                }
                 
                 if (types)
                 {
@@ -49,7 +57,7 @@ namespace GuiXml
             string funcArgs;
             try
             {
-                _xml = new Xml(_asm, typeNames);
+                _xml = new Xml(_asm, typeNames, rootspace);
                 Type[] insts = _xml.EventTypes.Where(t => !t.IsAbstract || !t.IsSealed).ToArray();
                 funcArgs = GenArgs(insts);
             }
@@ -61,6 +69,8 @@ namespace GuiXml
             
             foreach (string path in args.AsSpan(0, pathEnd))
             {
+                if (path == "--abs") { continue; }
+                
                 if (!File.Exists(path))
                 {
                     Console.Error.WriteLine($"{path} is not a file");
@@ -101,20 +111,32 @@ namespace GuiXml
                 csw.CommentLine();
                 csw.WriteLine();
                 
-                csw.WriteLine("using System");
-                csw.WriteLine("using Zene.Structs");
-                csw.WriteLine("using Zene.Graphics");
-                csw.WriteLine("using Zene.Windowing");
-                csw.WriteLine("using Zene.GUI");
-                csw.WriteLine();
+                if (!AbsRefs)
+                {
+                    csw.WriteLine("using System");
+                    csw.WriteLine("using Zene.Structs");
+                    csw.WriteLine("using Zene.Graphics");
+                    csw.WriteLine("using Zene.Windowing");
+                    csw.WriteLine("using Zene.GUI");
+                    csw.WriteLine();
+                }
                 // TODO: use folders for subspaces
                 csw.WriteLine($"namespace {rootspace}");
                 csw.OpenContext();
                 csw.WriteLine($"internal static class {name}");
                 csw.OpenContext();
-                csw.WriteLine($"internal static void LoadGUI(ElementList el{args})");
-                csw.OpenContext();
-                csw.WriteLine("IElement root = el.Source");
+                if (AbsRefs)
+                {
+                    csw.WriteLine($"internal static void LoadGUI(Zene.GUI.ElementList el{args})");
+                    csw.OpenContext();
+                    csw.WriteLine("var root = el.Source");
+                }
+                else
+                {
+                    csw.WriteLine($"internal static void LoadGUI(ElementList el{args})");
+                    csw.OpenContext();
+                    csw.WriteLine("IElement root = el.Source");
+                }
                 // csw.WriteLine("ListActions add = el.StartGroupAction()");
                 csw.WriteLine();
                 

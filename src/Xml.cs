@@ -15,8 +15,10 @@ namespace GuiXml
     
     public class Xml
     {
-        public Xml(Assembly a, IReadOnlyList<string> typeNames)
+        public Xml(Assembly a, IReadOnlyList<string> typeNames, string rootspace)
         {
+            _rootspace = rootspace;
+            
             _types = a.GetAllTypes();
             Type iElement = _types.FirstOrDefault(ti => ti.FullName == "Zene.GUI.IElement").AsType();
             _elementTypes = _types.Where(ti =>
@@ -81,6 +83,7 @@ namespace GuiXml
         
         public Type[] EventTypes;
         private Type _rootType;
+        private string _rootspace;
         
         public void TranscribeXml(Stream xml, CSWriter output)
         {
@@ -150,7 +153,14 @@ namespace GuiXml
             // construct element
             int count = GetCount(t);
             string vName = t.Name.ToLower() + count.ToString();
-            output.WriteLine($"{t.Name} {vName} = new {t.Name}()");
+            if (Program.AbsRefs && t.Namespace != _rootspace)
+            {
+                output.WriteLine($"var {vName} = new {t.FullName}()");
+            }
+            else
+            {
+                output.WriteLine($"{t.Name} {vName} = new {t.Name}()");
+            }
             
             // IElement element = constructor.Invoke(null) as IElement;
 
@@ -235,7 +245,7 @@ namespace GuiXml
             output.WriteLine($"{vName}.{name} += {dName}");
         }
 
-        private static string ParseEventString(string value, int paramCount, Type sourceType)
+        private string ParseEventString(string value, int paramCount, Type sourceType)
         {
             if (value[^1] == ')' && value[^2] == '(')
             {
@@ -250,7 +260,12 @@ namespace GuiXml
 
             if (mi.IsStatic)
             {
-                return mi.Name;
+                if (Program.AbsRefs && sourceType.Namespace != _rootspace)
+                {
+                    return $"{sourceType.FullName}.{mi.Name}";
+                }
+                
+                return $"{sourceType.Name}.{mi.Name}";
             }
 
             return $"{sourceType.Name.ToLower()}.{mi.Name}";
@@ -326,6 +341,10 @@ namespace GuiXml
             if (constructor.Length == 1)
             {
                 // return validConstructors.First().Invoke(null);
+                if (Program.AbsRefs && type.Namespace != _rootspace)
+                {
+                    return $"new {type.FullName}()";
+                }
                 return $"new {type.Name}()";
             }
 
@@ -362,7 +381,14 @@ namespace GuiXml
             
             StringBuilder sb = new StringBuilder(20);
             
-            sb.Append($"new {type.Name}(");
+            if (Program.AbsRefs && type.Namespace != _rootspace)
+            {
+                sb.Append($"new {type.FullName}(");
+            }
+            else
+            {
+                sb.Append($"new {type.Name}(");
+            }
             for (int i = 0; i < parameters.Length; i++)
             {
                 sb.Append(parameters[i]);
@@ -529,7 +555,14 @@ namespace GuiXml
             }
 
             // object obj = constructor.Invoke(null);
-            output.WriteLine($"{t.Name} {parent.Name} = new {t.Name}()");
+            if (Program.AbsRefs && t.Namespace != _rootspace)
+            {
+                output.WriteLine($"var {parent.Name} = new {t.FullName}()");
+            }
+            else
+            {
+                output.WriteLine($"{t.Name} {parent.Name} = new {t.Name}()");
+            }
 
             foreach (XmlAttribute a in node.Attributes)
             {
