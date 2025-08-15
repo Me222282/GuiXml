@@ -25,7 +25,7 @@ namespace GuiXml
                     continue;
                 }
                 
-                if (arg == "..")
+                if (arg == "--")
                 {
                     pathEnd = i;
                     types = true;
@@ -115,10 +115,12 @@ namespace GuiXml
                 csw.WriteLine($"internal static void LoadGUI(ElementList el{args})");
                 csw.OpenContext();
                 csw.WriteLine("IElement root = el.Source");
+                // csw.WriteLine("ListActions add = el.StartGroupAction()");
                 csw.WriteLine();
                 
                 _xml.TranscribeXml(stream, csw);
                 
+                // csw.WriteLine("add.Apply()");
                 csw.CloseContext();
                 csw.CloseContext();
                 csw.CloseContext();
