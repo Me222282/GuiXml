@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Linq;
 using System.ComponentModel;
 using System.IO;
+using System.Text;
 
 namespace GuiXml
 {
@@ -51,19 +52,34 @@ namespace GuiXml
             AddParser(XmlTypeParser.Vector3IParser, vector3I);
             AddParser(XmlTypeParser.Vector4Parser(useFloat), vector4);
             AddParser(XmlTypeParser.Vector4IParser, vector4I);
+            
+            _rootType = _types.FirstOrDefault(ti => ti.FullName == "Zene.GUI.RootElement").AsType();
         }
 
         private readonly IEnumerable<TypeInfo> _types;
         private readonly IEnumerable<TypeInfo> _elementTypes;
         private readonly Dictionary<Type, StringParser> _stringParses = new Dictionary<Type, StringParser>();
+        private readonly Dictionary<Type, int> _typeCounts = new Dictionary<Type, int>();
 
         public void AddParser(StringParser func, Type returnType) => _stringParses.Add(returnType, func);
-
-        private Window _window;
+        private int GetCount(Type t)
+        {
+            bool exist = _typeCounts.TryGetValue(t, out int v);
+            if (!exist)
+            {
+                _typeCounts.Add(t, 1);
+                return 1;
+            }
+            v++;
+            _typeCounts[t] = v;
+            return v;
+        }
+        
         private object _events;
         private Type _eventType;
+        private Type _rootType;
         
-        public void TranscribeXml(Stream xml, Stream output)
+        public void TranscribeXml(Stream xml, CSWriter output)
         {
             XmlDocument root = new XmlDocument();
             try
@@ -94,25 +110,27 @@ namespace GuiXml
 
             foreach (XmlNode node in xnl)
             {
-                IElement e = ParseNode(node, re.Source);
+                string name = ParseNode(node, new Field("root", _rootType), output);
                 // Property node
-                if (e == null) { continue; }
+                if (name == null) { continue; }
 
-                re.Add(e);
+                // re.Add(e);
+                output.WriteLine($"root.AddChild({name})");
+                output.WriteLine();
             }
         }
 
-        private IElement ParseNode(XmlNode node, object parent, Stream output)
+        private string ParseNode(XmlNode node, Field parent, CSWriter output)
         {
             if (node.Name == "Property")
             {
-                ParseProperty(node, parent);
+                ParseProperty(node, parent, output);
                 return null;
             }
 
             return ParseElement(node, output);
         }
-        private IElement ParseElement(XmlNode node, Stream output)
+        private string ParseElement(XmlNode node, CSWriter output)
         {
             Type t = _elementTypes.FindType(node.Name);
             if (t == null)
@@ -126,13 +144,16 @@ namespace GuiXml
                 throw new Exception($"Type {node.Name} does not have a parameterless constructor");
             }
             
+            // construct element
+            int count = GetCount(t);
+            string vName = t.Name.ToLower() + count.ToString();
+            output.WriteLine($"{t.Name} {vName} = new {t.Name}()");
             
-            
-            IElement element = constructor.Invoke(null) as IElement;
+            // IElement element = constructor.Invoke(null) as IElement;
 
             foreach (XmlAttribute a in node.Attributes)
             {
-                ParseAttribute(a.Name, a.Value, t, element);
+                ParseAttribute(a.Name, a.Value, new Field(vName, t), output);
             }
 
             foreach (XmlNode child in node.ChildNodes)
@@ -145,42 +166,45 @@ namespace GuiXml
                     {
                         throw new Exception($"{node.Name} doesn't have a Text property");
                     }
-
-                    pi.SetValue(element, child.Value.Trim());
+                    
+                    output.WriteLine($"{vName}.Text = {child.Value.Trim()}");
+                    // pi.SetValue(element, child.Value.Trim());
                     continue;
                 }
 
                 if (child.NodeType != XmlNodeType.Element) { continue; }
 
-                IElement e = ParseNode(child, element);
+                string childName = ParseNode(child, new Field(vName, t), output);
                 // Property node
-                if (e == null) { continue; }
+                if (childName == null) { continue; }
 
-                if (!element.IsParent)
-                {
-                    throw new Exception($"{node.Name} cannot have child elements.");
-                }
+                // if (!element.IsParent)
+                // {
+                //     throw new Exception($"{node.Name} cannot have child elements.");
+                // }
 
-                element.Children.Add(e);
+                output.WriteLine($"{vName}.Children.Add({childName})");
+                output.WriteLine();
             }
 
-            return element;
+            return vName;
         }
 
-        private void ParseAttribute(string name, string value, Type type, object e)
+        private void ParseAttribute(string name, string value, Field parent, CSWriter output)
         {
-            PropertyInfo p = type.GetPropertyUnambiguous(name, BindingFlags.Public | BindingFlags.Instance);
+            PropertyInfo p = parent.Type.GetPropertyUnambiguous(name, BindingFlags.Public | BindingFlags.Instance);
 
             if (p == null || !p.CanWrite)
             {
-                ParseEventAttribute(name, value, type, e);
+                ParseEventAttribute(name, value, parent.Type, parent.Name, output);
                 return;
             }
 
-            object o = ParseString(value, p.PropertyType);
-            p.SetValue(e, o);
+            string set = ParseString(value, p.PropertyType);
+            // p.SetValue(e, o);
+            output.WriteLine($"{parent.Name}.{name} = {set}");
         }
-        private void ParseEventAttribute(string name, string value, Type type, object e)
+        private void ParseEventAttribute(string name, string value, Type type, string vName, CSWriter output)
         {
             EventInfo ei = type.GetEvent(name);
             if (ei == null)
@@ -231,7 +255,7 @@ namespace GuiXml
             return mi.CreateDelegate(delegateType, methodSource);
         }
 
-        private object ParseString(string value, Type returnType)
+        private string ParseString(string value, Type returnType)
         {
             value = value.Trim();
 
@@ -240,7 +264,15 @@ namespace GuiXml
                 TypeConverter tc = TypeDescriptor.GetConverter(returnType);
                 object o = tc.ConvertFromInvariantString(value);
                 // If null - parser not valid
-                if (o != null) { return o; }
+                if (o != null)
+                {
+                    if (returnType == typeof(float))
+                    {
+                        return value + "f";
+                    }
+                    
+                    return value;
+                }
             }
             catch (Exception) { }
 
@@ -256,7 +288,7 @@ namespace GuiXml
             return StringByType(value, returnType);
         }
 
-        private object StringByType(string src, Type assign)
+        private string StringByType(string src, Type assign)
         {
             string[] constructor = SplitConstructor(src);
             if (constructor.Length == 0)
@@ -288,10 +320,11 @@ namespace GuiXml
             // No parameters
             if (constructor.Length == 1)
             {
-                return validConstructors.First().Invoke(null);
+                // return validConstructors.First().Invoke(null);
+                return $"new {type.Name}()";
             }
 
-            object[] parameters = new object[constructor.Length - 1];
+            string[] parameters = new string[constructor.Length - 1];
             ConstructorInfo constructorMethod = null;
 
             foreach (ConstructorInfo ci in validConstructors)
@@ -321,8 +354,21 @@ namespace GuiXml
             {
                 throw new Exception("Invalid constructor parameters");
             }
-
-            return constructorMethod.Invoke(parameters);
+            
+            StringBuilder sb = new StringBuilder(20);
+            
+            sb.Append($"new {type.Name}(");
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                sb.Append(parameters[i]);
+                if (i < parameters.Length - 1)
+                {
+                    sb.Append(", ");
+                }
+            }
+            sb.Append(')');
+            
+            return sb.ToString();
         }
         private static string[] SplitConstructor(string src)
         {
@@ -391,12 +437,12 @@ namespace GuiXml
             return strings.ToArray();
         }
 
-        private void ParseProperty(XmlNode node, object parent)
+        private void ParseProperty(XmlNode node, Field parent, CSWriter output)
         {
-            if (parent == null)
-            {
-                throw new Exception("No parent to set property");
-            }
+            // if (parentName == null)
+            // {
+            //     throw new Exception("No parent to set property");
+            // }
 
             XmlAttributeCollection xac = node.Attributes;
 
@@ -433,7 +479,7 @@ namespace GuiXml
             else if (node.ChildNodes.Count > 0 &&
                     node.ChildNodes[0].NodeType != XmlNodeType.Text)
             {
-                ParseAttributeObject(name, node.ChildNodes[0], parent.GetType(), parent);
+                ParseAttributeObject(name, node.ChildNodes[0], parent, output);
                 return;
             }
             else
@@ -441,25 +487,31 @@ namespace GuiXml
                 value = node.InnerText;
             }
 
-            ParseAttribute(name, value, parent.GetType(), parent);
+            ParseAttribute(name, value, parent, output);
         }
-        private void ParseAttributeObject(string name, XmlNode value, Type type, object e)
+        private void ParseAttributeObject(string name, XmlNode value, Field parent, CSWriter output)
         {
             PropertyInfo p;
-            p = type.GetPropertyUnambiguous(name, BindingFlags.Public | BindingFlags.Instance);
-
-            object o = ParseObjectProp(value, p.PropertyType, null);
-            p.SetValue(e, o);
+            p = parent.Type.GetPropertyUnambiguous(name, BindingFlags.Public | BindingFlags.Instance);
+            Type t = p.PropertyType;
+            
+            // construct element
+            int count = GetCount(t);
+            string vName = t.Name.ToLower() + count.ToString();
+            
+            ParseObjectProp(value, new Field(vName, t), output);
+            // p.SetValue(e, o);
+            output.WriteLine($"{parent.Name}.{name} = {vName}");
         }
-        private object ParseObjectProp(XmlNode node, Type type, object parent)
+        private void ParseObjectProp(XmlNode node, Field parent, CSWriter output)
         {
             if (node.Name == "Property")
             {
-                ParseProperty(node, parent);
-                return null;
+                ParseProperty(node, parent, output);
+                return;
             }
 
-            Type t = _types.FindType(node.Name, type);
+            Type t = _types.FindType(node.Name, parent.Type);
             if (t == null)
             {
                 throw new Exception("Tag name does not match expected type or does not exist");
@@ -471,14 +523,13 @@ namespace GuiXml
                 throw new Exception("Type does not have a parameterless constructor");
             }
 
-            object obj = constructor.Invoke(null);
+            // object obj = constructor.Invoke(null);
+            output.WriteLine($"{t.Name} {parent.Name} = new {t.Name}()");
 
             foreach (XmlAttribute a in node.Attributes)
             {
-                ParseAttribute(a.Name, a.Value, t, obj);
+                ParseAttribute(a.Name, a.Value, parent, output);
             }
-
-            return obj;
         }
     }
 }
