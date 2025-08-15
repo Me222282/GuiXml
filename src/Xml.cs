@@ -10,7 +10,9 @@ using System.Text;
 namespace GuiXml
 {
     public delegate string StringParser(string value);
-
+    
+    public record struct Field(string Name, Type Type);
+    
     public class Xml
     {
         public Xml(Assembly a, IReadOnlyList<string> typeNames)
