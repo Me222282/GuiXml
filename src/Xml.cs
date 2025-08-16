@@ -238,7 +238,7 @@ namespace GuiXml
             }
             if (dName == null)
             {
-                throw new Exception($"A valid method {value} could not be found");
+                throw new Exception($"A valid method named {value} could not be found");
             }
 
             // ei.AddEventHandler(e, d);

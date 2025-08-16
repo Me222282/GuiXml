@@ -88,7 +88,6 @@ namespace GuiXml
                 FileStream input = new FileStream(path, FileMode.Open);
                 FileStream output = new FileStream(path + ".cs", FileMode.Create);
                 RunFile(input, output, Path.GetFileNameWithoutExtension(path), rootspace, funcArgs);
-                Console.WriteLine($"Finished");
             }
         }
         
@@ -161,6 +160,8 @@ namespace GuiXml
                 Console.Error.WriteLine(e.Message);
                 return;
             }
+            
+            Console.WriteLine($"Finished");
         }
         
         static string GenArgs(Type[] types)
