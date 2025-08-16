@@ -290,6 +290,14 @@ namespace GuiXml
                     {
                         return $"@\"{value}\"";
                     }
+                    if (returnType.IsEnum)
+                    {
+                        if (Program.AbsRefs && returnType.Namespace != _rootspace)
+                        {
+                            return $"{returnType.FullName}.{value}";
+                        }
+                        return $"{returnType.Name}.{value}";
+                    }
                     
                     return value;
                 }
