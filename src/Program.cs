@@ -13,6 +13,8 @@ namespace GuiXml
         
         static void Main(string[] args)
         {
+            Console.SetError(new ErrorWriter(Console.Error));
+            
             List<string> typeNames = new List<string>();
             bool types = false;
             int pathEnd = args.Length;
