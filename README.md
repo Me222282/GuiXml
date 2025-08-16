@@ -11,7 +11,7 @@ It then relies on the standard dotnet 8.0 folder structure and location for bin 
 
 The arguments to the program are as follows:
 ```
-guixml <xml_files>.. [--abs] [--] [<event_types>..]
+guixml <xml_files>.. [--abs] [-p] [--] [<event_types>..]
 ```
 
 **\<xml_files\>** specify all the xml files that are to be converted.
@@ -27,6 +27,8 @@ If a type is non-static, a reference to an instance will be required in the gene
 
 **\[\-\-abs\]** is used if you want all types to referenced with their namespace, excluding ones defined in the project's root namespace.
 This removes all using statements and resolves the issue of missing using statements.
+
+**\[\-p\]** causes the output class and function to be public instead of internal.
 
 The generated function does not clear the contents of the root element passed, nor does it start a group action.
 If you want either of these to occur, either add it to the function manually, or call them before the function.  

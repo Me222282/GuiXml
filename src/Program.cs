@@ -10,14 +10,15 @@ namespace GuiXml
     class Program
     {
         public static bool AbsRefs = false;
+        private static string _visibility = "internal";
         
         static void Main(string[] args)
         {
             Console.SetError(new ErrorWriter(Console.Error));
             
-            List<string> typeNames = new List<string>();
+            List<string> typeNames = new List<string>(args.Length);
+            List<string> paths = new List<string>(args.Length);
             bool types = false;
-            int pathEnd = args.Length;
             
             for (int i = 0; i < args.Length; i++)
             {
@@ -26,6 +27,11 @@ namespace GuiXml
                 if (arg == "--abs")
                 {
                     AbsRefs = true;
+                    continue;
+                }
+                if (arg == "-p")
+                {
+                    _visibility = "public";
                     continue;
                 }
                 
@@ -37,13 +43,14 @@ namespace GuiXml
                 
                 if (arg == "--")
                 {
-                    pathEnd = i;
                     types = true;
                     continue;
                 }
+                
+                paths.Add(arg);
             }
             
-            if (pathEnd == 0)
+            if (paths.Count == 0)
             {
                 Console.Error.WriteLine($"Missing path argument");
                 return;
@@ -69,10 +76,8 @@ namespace GuiXml
                 return;
             }
             
-            foreach (string path in args.AsSpan(0, pathEnd))
+            foreach (string path in paths)
             {
-                if (path == "--abs") { continue; }
-                
                 if (!File.Exists(path))
                 {
                     Console.Error.WriteLine($"{path} is not a file");
@@ -125,17 +130,17 @@ namespace GuiXml
                 // TODO: use folders for subspaces
                 csw.WriteLine($"namespace {rootspace}");
                 csw.OpenContext();
-                csw.WriteLine($"internal static class {name}");
+                csw.WriteLine($"{_visibility} static class {name}");
                 csw.OpenContext();
                 if (AbsRefs)
                 {
-                    csw.WriteLine($"internal static void LoadGUI(Zene.GUI.ElementList el{args})");
+                    csw.WriteLine($"{_visibility} static void LoadGUI(Zene.GUI.ElementList el{args})");
                     csw.OpenContext();
                     csw.WriteLine("var root = el.Source");
                 }
                 else
                 {
-                    csw.WriteLine($"internal static void LoadGUI(ElementList el{args})");
+                    csw.WriteLine($"{_visibility} static void LoadGUI(ElementList el{args})");
                     csw.OpenContext();
                     csw.WriteLine("IElement root = el.Source");
                 }
